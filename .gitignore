@@ -1,0 +1,8 @@
+build/
+.devcontainer/
+.vscode/
+
+env.h
+passwords.h
+sdkconfig
+sdkconfig.old
