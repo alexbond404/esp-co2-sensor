@@ -1,4 +1,5 @@
 build/
+ota/
 .devcontainer/
 .vscode/
 

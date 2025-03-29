@@ -27,7 +27,7 @@ static ha_config_handle_t ha_calibrate_ppm_number;
 //static const char *TAG = "ha_task";
 static bool calibrate_switch_on_change_cb(ha_config_handle_t config, bool state)
 {
-    _event_cb(state ? HA_EVENT_CALIBRATE : HA_EVENT_CALIBRATE_ABORT, NULL);
+    _event_cb(state ? HA_EVENT_CALIBRATE : HA_EVENT_CALIBRATE_ABORT, (void*)(uint32_t)ha_number_get_value(ha_calibrate_ppm_number));
     return true;
 }
 
@@ -76,7 +76,7 @@ void ha_init(ha_event_cb_t event_cb)
         .step = 50,
         .mode = NUMBER_MODE_AUTO,
         .cls = DEV_CLASS_NONE,
-        .on_change_cb = NULL, /// TODO
+        .on_change_cb = NULL,
     };
     ha_calibrate_ppm_number = ha_number_init("calibrate ppm", 400, &calibrate_number_setttings);
 

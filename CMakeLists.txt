@@ -4,8 +4,8 @@
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.5)
 
-set(PROJECT_VER "0.0.1")
-set(PROJECT_TITLE "esp32-co2-sensor")
+set(PROJECT_VER "0.0.2")
+set(PROJECT_TITLE "esp-co2-sensor")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 idf_build_component("${CMAKE_CURRENT_LIST_DIR}/ha_mqtt")

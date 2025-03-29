@@ -36,6 +36,7 @@ static i2c_master_dev_handle_t scd_bus_handle = NULL;
 static i2c_device_t dev_type = DEV_UNKNOWN;
 static bool scd_calibrating = false;
 static TickType_t scd_calibrate_start;
+static uint32_t scd_calibrate_ppm;
 
 static i2c_device_t init_i2c(void);
 
@@ -121,7 +122,7 @@ static void wifi_event_handler(wifi_event_e event, void *user_data)
 
 void ha_event_cb(ha_event_t event, void *param)
 {
-    ESP_LOGI(TAG, "ha_event: %d", (int)event);
+    ESP_LOGI(TAG, "ha_event: %d, param: %08x", (int)event, (unsigned int)param);
     switch (event)
     {
         case HA_EVENT_CALIBRATE:
@@ -130,6 +131,7 @@ void ha_event_cb(ha_event_t event, void *param)
                 scd30_set_measurement_interval(2);
             }
             scd_calibrate_start = xTaskGetTickCount();
+            scd_calibrate_ppm = (uint32_t)param;
             scd_calibrating = true;
             break;
 
@@ -191,26 +193,47 @@ void app_main(void)
         {
             vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-            bool rdy = false;
-            scd30_get_data_ready_status(&rdy);
-            if (rdy)
+            switch (dev_type)
             {
-                sensor_output_t output;
-                scd30_read_measurement(&output.co2, &output.temp, &output.hum);
-                ESP_LOGI(TAG, "scd30 co2: %d, temp: %d, hum: %d",
-                    (int)output.co2, (int)output.temp, (int)output.hum);
-
-                // check if calibration is ongoing
-                if (scd_calibrating && (xTaskGetTickCount() - scd_calibrate_start >= 2 * 60 * 1000 / portTICK_PERIOD_MS))
+                case DEV_SCD30:
                 {
-                    scd30_force_calibration(400);
-                    scd30_set_measurement_interval(DATA_SEND_INTERVAL);
-                    scd_calibrating = false;
-                }
-            
-                ha_update_data(&output, scd_calibrating);
+                    bool rdy = false;
+                    scd30_get_data_ready_status(&rdy);
+                    if (rdy)
+                    {
+                        sensor_output_t output;
+                        scd30_read_measurement(&output.co2, &output.temp, &output.hum);
+                        ESP_LOGI(TAG, "scd30 co2: %d, temp: %d, hum: %d",
+                            (int)output.co2, (int)output.temp, (int)output.hum);
 
-                scd_done = true;
+                        // check if calibration is ongoing
+                        if (scd_calibrating && (xTaskGetTickCount() - scd_calibrate_start >= 2 * 60 * 1000 / portTICK_PERIOD_MS))
+                        {
+                            scd30_force_calibration(scd_calibrate_ppm);
+                            scd30_set_measurement_interval(DATA_SEND_INTERVAL);
+                            scd_calibrating = false;
+                        }
+
+                        ha_update_data(&output, scd_calibrating);
+
+                        scd_done = true;
+                    }
+                }
+                break;
+
+                default:
+                {
+                    vTaskDelay(DATA_SEND_INTERVAL * 1000 / portTICK_PERIOD_MS);
+                    scd_calibrating = false;
+
+                    sensor_output_t output;
+                    output.temp = 0;
+                    output.hum = 0;
+                    output.co2 = 0;
+                    ha_update_data(&output, scd_calibrating);
+                    scd_done = true;
+                }
+                break;
             }
         }
 
