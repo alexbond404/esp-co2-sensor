@@ -12,14 +12,15 @@
 #include "nvs_flash.h"
 #include "ota_http_server.h"
 #include "scd30.h"
+#include "scd40.h"
 #include "stat_led.h"
 #include "wifi_task.h"
 
 
 #define DATA_SEND_INTERVAL  30
 
-#define SCL_IO_PIN         3
-#define SDA_IO_PIN         4
+#define SCL_IO_PIN         4
+#define SDA_IO_PIN         3
 
 
 typedef enum
@@ -41,7 +42,7 @@ static uint32_t scd_calibrate_ppm;
 static i2c_device_t init_i2c(void);
 
 
-static bool scd30_io_func(uint8_t *buf_wr, uint8_t len_wr, uint8_t *buf_rd, uint8_t len_rd)
+static bool scdxx_io_func(uint8_t *buf_wr, uint8_t len_wr, uint8_t *buf_rd, uint8_t len_rd)
 {
     bool res = false;
     if (NULL != buf_wr && 0 != len_wr && NULL != buf_rd && 0 != len_rd)
@@ -97,6 +98,16 @@ static i2c_device_t init_i2c(void)
         };
         ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &scd40_config, &scd_bus_handle));
         dev_type = DEV_SCD40;
+    }
+    else
+    {
+        for (uint8_t addr = 0; addr < 0x7f; addr++)
+        {
+            if (ESP_OK == i2c_master_probe(bus_handle, addr, 10))
+            {
+                ESP_LOGI(TAG, "found device, addr: 0x%02x", addr);
+            }
+        }
     }
 
     return dev_type;
@@ -175,10 +186,18 @@ void app_main(void)
     switch (dev_type)
     {
         case DEV_SCD30:
-            scd30_init(scd30_io_func);
+            ESP_LOGI(TAG, "device type is scd30");
+            scd30_init(scdxx_io_func);
             scd30_set_measurement_interval(DATA_SEND_INTERVAL);
             scd30_set_automatic_self_calibration_enabled(false);
             scd30_start_cont_measurement(0);
+            break;
+
+        case DEV_SCD40:
+            ESP_LOGI(TAG, "device type is scd40");
+            scd40_init(scdxx_io_func);
+            scd40_set_automatic_self_calibration_enabled(false);
+            scd40_start_measurement();
             break;
 
         default:
@@ -211,6 +230,31 @@ void app_main(void)
                         {
                             scd30_force_calibration(scd_calibrate_ppm);
                             scd30_set_measurement_interval(DATA_SEND_INTERVAL);
+                            scd_calibrating = false;
+                        }
+
+                        ha_update_data(&output, scd_calibrating);
+
+                        scd_done = true;
+                    }
+                }
+                break;
+
+                case DEV_SCD40:
+                {
+                    bool rdy = false;
+                    scd40_get_data_ready_status(&rdy);
+                    if (rdy)
+                    {
+                        sensor_output_t output;
+                        scd40_read_measurement(&output.co2, &output.temp, &output.hum);
+                        ESP_LOGI(TAG, "scd40 co2: %d, temp: %d, hum: %d",
+                            (int)output.co2, (int)output.temp, (int)output.hum);
+
+                        // check if calibration is ongoing
+                        if (scd_calibrating && (xTaskGetTickCount() - scd_calibrate_start >= 2 * 60 * 1000 / portTICK_PERIOD_MS))
+                        {
+                            scd40_force_calibration(scd_calibrate_ppm);
                             scd_calibrating = false;
                         }
 
