@@ -252,10 +252,18 @@ void app_main(void)
                             (int)output.co2, (int)output.temp, (int)output.hum);
 
                         // check if calibration is ongoing
-                        if (scd_calibrating && (xTaskGetTickCount() - scd_calibrate_start >= 2 * 60 * 1000 / portTICK_PERIOD_MS))
+                        if (scd_calibrating)
                         {
-                            scd40_force_calibration(scd_calibrate_ppm);
-                            scd_calibrating = false;
+                            if (xTaskGetTickCount() - scd_calibrate_start >= 2 * 60 * 1000 / portTICK_PERIOD_MS)
+                            {
+                                scd40_force_calibration(scd_calibrate_ppm);
+                                scd_calibrating = false;
+                            }
+                        }
+                        else
+                        {
+                            // do delay - no need to send measures too often
+                            vTaskDelay(DATA_SEND_INTERVAL * 1000 / portTICK_PERIOD_MS);
                         }
 
                         ha_update_data(&output, scd_calibrating);
