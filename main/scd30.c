@@ -14,6 +14,9 @@
 #define CMD_SET_AUTO_SELF_CAL_EN        0x5306
 // #define CMD_SET_AMBIENT_PRESSURE        0xe000
 #define CMD_FORCE_RECALIBRATION         0x5204
+#define CMD_GET_ALTITUDE_COMPENSATION   0x5102
+#define CMD_GET_TEMPERATURE_COMPENSATION 0x5403
+#define CMD_GET_FIRMWARE_VERSION        0xd100
 
 #define CRC8_POLYNOMIAL                 0x31
 #define CRC8_INIT                       0xff
@@ -144,13 +147,59 @@ bool scd30_set_automatic_self_calibration_enabled(bool enable)
     return send_command(CMD_SET_AUTO_SELF_CAL_EN, &param, 1);
 }
 
-// bool scd30_set_ambient_pressure(uint32_t pressure)
-// {
-//     uint16_t param = pressure / 100;
-//     return send_command(CMD_SET_AMBIENT_PRESSURE, &param, 1);
-// }
+bool scd30_get_altitute_compensation(uint16_t *altitude)
+{
+    if (!send_command(CMD_GET_ALTITUDE_COMPENSATION, NULL, 0))
+    {
+        return false;
+    }
+
+    uint16_t resp[1];
+    if (!read_responce(resp, 1))
+    {
+        return false;
+    }
+
+    *altitude = resp[0];
+    return true;
+}
+
+bool scd30_get_temperature_offset(uint16_t *offset)
+{
+    if (!send_command(CMD_GET_TEMPERATURE_COMPENSATION, NULL, 0))
+    {
+        return false;
+    }
+
+    uint16_t resp[1];
+    if (!read_responce(resp, 1))
+    {
+        return false;
+    }
+
+    *offset = resp[0];
+    return true;
+}
 
 bool scd30_force_calibration(uint16_t co2)
 {
     return send_command(CMD_FORCE_RECALIBRATION, &co2, 1);
+}
+
+bool scd30_get_firmware_version(uint8_t *major, uint8_t *minor)
+{
+    if (!send_command(CMD_GET_FIRMWARE_VERSION, NULL, 0))
+    {
+        return false;
+    }
+
+    uint16_t resp[1];
+    if (!read_responce(resp, 1))
+    {
+        return false;
+    }
+
+    *major = resp[0] >> 8;
+    *minor = resp[0] >> 0;
+    return true;
 }

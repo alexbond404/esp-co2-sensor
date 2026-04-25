@@ -137,10 +137,10 @@ void ha_event_cb(ha_event_t event, void *param)
     switch (event)
     {
         case HA_EVENT_CALIBRATE:
-            if (DEV_SCD30 == dev_type)
-            {
-                scd30_set_measurement_interval(2);
-            }
+            // if (DEV_SCD30 == dev_type)
+            // {
+            //     scd30_set_measurement_interval(2);
+            // }
             scd_calibrate_start = xTaskGetTickCount();
             scd_calibrate_ppm = (uint32_t)param;
             scd_calibrating = true;
@@ -186,19 +186,50 @@ void app_main(void)
     switch (dev_type)
     {
         case DEV_SCD30:
+        {
+            uint8_t ver_major, ver_minor;
+            uint16_t altitude;
+            uint16_t offset;
             ESP_LOGI(TAG, "device type is scd30");
             scd30_init(scdxx_io_func);
             scd30_set_measurement_interval(DATA_SEND_INTERVAL);
             scd30_set_automatic_self_calibration_enabled(false);
+            if (scd30_get_firmware_version(&ver_major, &ver_minor))
+            {
+                ESP_LOGI(TAG, "firmware version: %d.%d", (int)ver_major, (int)ver_minor);
+            }
+            else
+            {
+                ESP_LOGE(TAG, "failed to get firmware version");
+            }
+            if (scd30_get_altitute_compensation(&altitude))
+            {
+                ESP_LOGI(TAG, "altitude compensation: %u", altitude);
+            }
+            else
+            {
+                ESP_LOGE(TAG, "failed to get altitude compensation");
+            }
+            if (scd30_get_temperature_offset(&offset))
+            {
+                ESP_LOGI(TAG, "temperature offset: %u.%02u", offset / 100, offset % 100);
+            }
+            else
+            {
+                ESP_LOGE(TAG, "failed to get temperature offset");
+            }
             scd30_start_cont_measurement(0);
-            break;
+        }
+        break;
 
         case DEV_SCD40:
+        {
             ESP_LOGI(TAG, "device type is scd40");
             scd40_init(scdxx_io_func);
             scd40_set_automatic_self_calibration_enabled(false);
             scd40_start_measurement();
-            break;
+        }
+        break;
 
         default:
             ESP_LOGI(TAG, "device type is unknown");

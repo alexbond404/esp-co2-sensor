@@ -13,7 +13,9 @@ bool scd30_set_measurement_interval(uint16_t sec);
 bool scd30_read_measurement(uint16_t *co2, float *temp, float *hum);
 bool scd30_get_data_ready_status(bool *ready);
 bool scd30_set_automatic_self_calibration_enabled(bool enable);
-// bool scd40_set_ambient_pressure(uint32_t pressure);
+bool scd30_get_altitute_compensation(uint16_t *altitude);
+bool scd30_get_temperature_offset(uint16_t *offset);
 bool scd30_force_calibration(uint16_t co2);
+bool scd30_get_firmware_version(uint8_t *major, uint8_t *minor);
 
 #endif
